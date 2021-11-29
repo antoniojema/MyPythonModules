@@ -11,6 +11,9 @@ def plotFromFile(
     logscale:Optional[str]=None,
     func_x:Callable[[List[float]],List[float]]=lambda x: x,
     func_y:Callable[[List[float]],List[float]]=lambda x: x,
+    xlabel:str="",
+    ylabel:str="",
+    grid:bool=True,
     show:bool=True,
     **kwargs
 ) -> None:
@@ -27,6 +30,12 @@ def plotFromFile(
     else:
         raise Exception("logscale must be None, 'x', 'y', or 'xy'")
     
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+
+    if grid:
+        plt.grid()
+
     if show:
         plt.show()
 
