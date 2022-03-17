@@ -2,21 +2,26 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
-from typing import Optional, Tuple, List, Callable, Sequence, Union
+from typing import Optional, Tuple, List, Callable, Sequence, Union, Dict, Any
 import os
 
 
 def formattedFigure(
+    subplots_x:int = 1,
+    subplots_y:int = 1,
     figsize : Tuple[float,float]=(6.0,4.0),
     font : str = 'serif',
-) -> None:
+    mathfont : str = 'dejavuserif',
+) -> Tuple[plt.figure, Union[plt.Axes, np.ndarray]]:
     # from matplotlib import rc
     # rc('text', usetex=True)
 
     mpl.rc('font', family=font)
+    mpl.rc('mathtext', fontset=mathfont)
+    # mpl.rcParams['text.usetex'] = True
+    # mpl.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}'] #for \text command
 
-    fig = plt.figure(figsize=figsize)
-    ax = plt.gca()
+    fig, ax = plt.subplots(subplots_x, subplots_y, figsize=figsize)
 
     return fig, ax
 
@@ -48,6 +53,9 @@ def formatPlot(
     title:Optional[str]=None,
     xlabel:Optional[str]=None,
     ylabel:Optional[str]=None,
+    title_kwargs:Dict[str, Any]=dict(),
+    xlabel_kwargs:Dict[str, Any]=dict(),
+    ylabel_kwargs:Dict[str, Any]=dict(),
     xlim:Optional[Tuple[float,float]]=None,
     ylim:Optional[Tuple[float,float]]=None,
     xlim_margin:float=0.02,
@@ -56,18 +64,21 @@ def formatPlot(
     yticks:Optional[Union[List[float], np.ndarray]]=None,
     xticks_minor:Union[bool, List[float], np.ndarray]=True,
     yticks_minor:Union[bool, List[float], np.ndarray]=True,
+    xticks_kwargs:Dict[str, Any]=dict(),
+    yticks_kwargs:Dict[str, Any]=dict(),
     grid:bool=True,
     legend:bool=True,
+    legend_kwargs:Dict[str, Any]=dict(),
     tight_layout:bool=True,
     savefig:List[str]=[],
     show:bool=True,
 ) -> None:
     if title is not None:
-        ax.set_title(title)
+        ax.set_title(title, **title_kwargs)
     if xlabel is not None:
-        ax.set_xlabel(xlabel)
+        ax.set_xlabel(xlabel, **xlabel_kwargs)
     if ylabel is not None:
-        ax.set_ylabel(ylabel)
+        ax.set_ylabel(ylabel, **ylabel_kwargs)
     
     if xlim is not None:
         x_extra = xlim_margin * (xlim[1] - xlim[0])
@@ -80,6 +91,8 @@ def formatPlot(
         ax.set_xticks(xticks)
     if yticks is not None:
         ax.set_yticks(yticks)
+    ax.tick_params(axis='x', which='major', **xticks_kwargs)
+    ax.tick_params(axis='y', which='major', **yticks_kwargs)
 
     if type(xticks_minor) is bool:
         if xticks_minor:
@@ -97,7 +110,7 @@ def formatPlot(
     ax.tick_params(which="minor", width=1, length=1)
 
     if legend:
-        leg = ax.legend(labelspacing=0.1, borderpad=0, borderaxespad=0.8)
+        leg = ax.legend(labelspacing=0.1, borderpad=0, borderaxespad=0.8, **legend_kwargs)
         leg.get_frame().set_edgecolor('black')
         leg.get_frame().set_linewidth(1.0)
         leg.get_frame().set_boxstyle("square")
@@ -126,5 +139,3 @@ def plotFromFile(
 ) -> None:
     data : List[List[float]] = np.genfromtxt(file_name, skip_header=skip_header,dtype=float,delimiter=delimiter)
     plot(ax, data[:,cols[0]], data[:,cols[1]], **kwargs)
-
-# __all__:List[str] = ['plot','plotFromFile','formattedFigure']
