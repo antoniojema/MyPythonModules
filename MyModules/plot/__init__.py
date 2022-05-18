@@ -5,7 +5,6 @@ import numpy as np
 from typing import Optional, Tuple, List, Callable, Sequence, Union, Dict, Any
 import os
 
-
 def formattedFigure(
     subplots_x:int = 1,
     subplots_y:int = 1,
@@ -46,7 +45,6 @@ def plot(
         ax.loglog  (func_x(xs), func_y(ys), **kwargs)
     else:
         raise Exception("logscale must be None, 'x', 'y', or 'xy'")
-
 
 def formatPlot(
     ax:plt.Axes,
@@ -135,7 +133,11 @@ def plotFromFile(
     delimiter:Union[str, int, Sequence]=None,
     cols:Tuple[int,int]=(0,1),
     skip_header:int=0,
+    col1:int=0,
+    col2:int=1,
     **kwargs
 ) -> None:
-    data : List[List[float]] = np.genfromtxt(file_name, skip_header=skip_header,dtype=float,delimiter=delimiter)
-    plot(ax, data[:,cols[0]], data[:,cols[1]], **kwargs)
+    data : List[List[float]] = np.genfromtxt(file_name, skip_header=skip_header, dtype=float, delimiter=delimiter)
+    plot(ax, data[:,cols[col1]], data[:,col2], **kwargs)
+
+__all__ = ["formattedFigure", "plot", "plotFromFile", "formatPlot"]
