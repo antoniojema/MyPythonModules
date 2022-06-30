@@ -5,6 +5,9 @@ import numpy as np
 from typing import Optional, Tuple, List, Callable, Sequence, Union, Dict, Any
 import os
 
+marker_list : List[str] = ["o", "s", "^", "v", "p", "*", "1", "2", "X", "D", "h"]
+marker_idx : int = 0
+
 def formattedFigure(
     subplots_x:int = 1,
     subplots_y:int = 1,
@@ -45,6 +48,49 @@ def plot(
         ax.loglog  (func_x(xs), func_y(ys), **kwargs)
     else:
         raise Exception("logscale must be None, 'x', 'y', or 'xy'")
+
+
+# Plot with paper format
+def plotForPaper(
+    ax:plt.Axes,
+    xs:List[float],
+    ys:List[float],
+    logscale:Optional[str]=None,
+    func_x:Callable[[List[float]],List[float]]=lambda x: x,
+    func_y:Callable[[List[float]],List[float]]=lambda x: x,
+    marker:Optional[str]=None,
+    markevery:Optional[int]=None,
+    markeredgewidth:Optional[float]=0.5,
+    markeredgecolor:Optional[str]="black",
+    **kwargs
+) -> None:
+    global marker_idx
+    
+    if marker is None:
+        marker_val = marker_list[marker_idx]
+        marker_idx = (marker_idx + 1) % len(marker_list)
+    else:
+        marker_val = marker
+    
+    if markevery is None:
+        markevery_val = round((len(xs)-1) / (10-1))
+    else:
+        markevery_val = markevery
+
+    plot(
+        ax=ax,
+        xs=xs,
+        ys=ys,
+        logscale=logscale,
+        func_x=func_x,
+        func_y=func_y,
+        marker=marker_val,
+        markevery=markevery_val,
+        markeredgewidth=markeredgewidth,
+        markeredgecolor=markeredgecolor,
+        **kwargs
+    )
+
 
 def formatPlot(
     ax:plt.Axes,
@@ -135,9 +181,14 @@ def plotFromFile(
     skip_header:int=0,
     col1:int=0,
     col2:int=1,
+    for_paper:bool=False,
     **kwargs
 ) -> None:
     data : List[List[float]] = np.genfromtxt(file_name, skip_header=skip_header, dtype=float, delimiter=delimiter)
-    plot(ax, data[:,cols[col1]], data[:,col2], **kwargs)
+    if not for_paper:
+        plot(ax, data[:,cols[col1]], data[:,col2], **kwargs)
+    else:
+        plotForPaper(ax, data[:,cols[col1]], data[:,col2], **kwargs)
 
-__all__ = ["formattedFigure", "plot", "plotFromFile", "formatPlot"]
+
+__all__ = ["formattedFigure", "plot", "plotForPaper", "plotFromFile", "formatPlot"]
