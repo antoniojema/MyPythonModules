@@ -64,6 +64,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     printColor("    - BRANCH CLEAN -", "green")
                     branch_clean = True
                 else:
+                    printColor("    -- BRANCH NOT CLEAN:", "red")
                     for out in output:
                         for line in out.split("\n"):
                             printColor(f"    {line}", "red")
