@@ -60,7 +60,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                 ).communicate()
 
                 branch_clean : bool = False
-                if "nothing to commit, working tree clean" in (output[0] + output[1]):
+                if "nothing to commit" in (output[0] + output[1]):
                     printColor("    - BRANCH CLEAN -", "green")
                     branch_clean = True
                 else:
