@@ -65,8 +65,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     branch_clean = True
                 else:
                     for out in output:
-                        for line in out.split("\n")[2:-1]:
-                            printColor(f"    {line}", "red")
+                        printColor(f"    {out}", "red")
                 
                 # Commit #
                 if (not branch_clean) and commit:
@@ -81,8 +80,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in add:", "red")
                         for out in output:
-                            for line in out.split("\n")[2:-1]:
-                                printColor(f"    {line}", "red")
+                            printColor(f"    {out}", "red")
                         continue
 
                     proc : Popen = Popen(
@@ -96,8 +94,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in commit:", "red")
                         for out in output:
-                            for line in out.split("\n")[2:-1]:
-                                printColor(f"    {line}", "red")
+                            printColor(f"    {out}", "red")
                         continue
 
                     printColor("    - COMMIT MADE -", "green")
@@ -116,8 +113,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in push:", "red")
                         for out in output:
-                            for line in out.split("\n")[2:-1]:
-                                printColor(f"    {line}", "red")
+                            printColor(f"    {out}", "red")
                         continue
                     
                     printColor("    - PUSH MADE -", "green")
