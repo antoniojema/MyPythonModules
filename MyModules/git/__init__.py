@@ -8,8 +8,8 @@ colors : dict = {
     "usual"  : "\033[0m",
 }
 
-def printColor(text : str, color : str, endcolor : str = "usual", **kwargs) -> None:
-    print(f"{colors[color]}{text}{colors[endcolor]}", **kwargs)
+def printColor(text : str, color : str, endcolor : str = "usual", flush:bool=True, **kwargs) -> None:
+    print(f"{colors[color]}{text}{colors[endcolor]}", **kwargs, flush=flush)
 
 
 def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:bool=False) -> None:
@@ -17,7 +17,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
         msg : str = "-- Checking directory: " + str(dir) + " --"
         print("\n" + "-" * len(msg))
         print(msg)
-        print("-" * len(msg))
+        print("-" * len(msg), flush=True)
         
         try:
             # Fetch #
@@ -30,13 +30,13 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
             
             if "fatal" in output[1]:
                 if "Could not read from remote repository" in output[1]:
-                    printColor("    ERROR: Remote repository could not be reached.", "red")
+                    printColor("    -- ERROR: Remote repository could not be reached.", "red")
                 
                 elif "not a git repository" in output[1]:
-                    printColor("    ERROR: Directory is not a git repository.", "red")
+                    printColor("    -- ERROR: Directory is not a git repository.", "red")
                 
                 else:
-                    printColor("    ERROR: Unknown error in fetch:", "red")
+                    printColor("    -- ERROR: Unknown error in fetch:", "red")
                     printColor(output[1], "red")
                 
                 continue
@@ -79,7 +79,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     output = proc.communicate()
                     ret_code : int = proc.returncode
                     if ret_code != 0:
-                        printColor("    ERROR: Error in add:", "red")
+                        printColor("    -- ERROR: Error in add:", "red")
                         for out in output:
                             for line in out.split("\n")[2:-1]:
                                 printColor(f"    {line}", "red")
@@ -94,7 +94,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     output = proc.communicate()
                     ret_code : int = proc.returncode
                     if ret_code != 0:
-                        printColor("    ERROR: Error in commit:", "red")
+                        printColor("    -- ERROR: Error in commit:", "red")
                         for out in output:
                             for line in out.split("\n")[2:-1]:
                                 printColor(f"    {line}", "red")
