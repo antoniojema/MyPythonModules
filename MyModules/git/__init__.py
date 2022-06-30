@@ -65,7 +65,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     branch_clean = True
                 else:
                     for out in output:
-                        for line in out:
+                        for line in out.split("\n"):
                             printColor(f"    {line}", "red")
                 
                 # Commit #
@@ -81,7 +81,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in add:", "red")
                         for out in output:
-                            for line in out:
+                            for line in out.split("\n"):
                                 printColor(f"    {line}", "red")
                         continue
 
@@ -96,7 +96,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in commit:", "red")
                         for out in output:
-                            for line in out:
+                            for line in out.split("\n"):
                                 printColor(f"    {line}", "red")
                         continue
 
@@ -116,7 +116,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in push:", "red")
                         for out in output:
-                            for line in out:
+                            for line in out.split("\n"):
                                 printColor(f"    {line}", "red")
                         continue
                     
