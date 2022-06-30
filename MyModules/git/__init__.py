@@ -110,7 +110,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                         cwd=dir,
                         encoding='utf-8',
                         stdout=PIPE, stderr=PIPE
-                    ).communicate()
+                    )
                     output = proc.communicate()
                     ret_code : int = proc.returncode
                     if ret_code != 0:
@@ -126,8 +126,8 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
             print("Keyboard Interrupt", "usual")
             exit()
         
-        except:
-            printColor("    - ERROR: Directory probably does not exist.", "red")
+        # except:
+        #     printColor("    - ERROR: Directory probably does not exist.", "red")
 
 
 __all__ = ["git_check"]
