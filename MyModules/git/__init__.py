@@ -70,25 +70,57 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                 
                 # Commit #
                 if (not branch_clean) and commit:
-                    Popen(
+                    proc : Popen = Popen(
                         ['git', 'add', '.'],
                         cwd=dir,
+                        encoding='utf-8',
                         stdout=PIPE, stderr=PIPE
-                    ).wait()
-                    Popen(
-                        ['git', 'commit', '-m', '"Automatic commit"'],
+                    )
+                    output = proc.communicate()
+                    ret_code : int = proc.returncode
+                    if ret_code != 0:
+                        printColor("    ERROR: Error in add:", "red")
+                        for out in output:
+                            for line in out.split("\n")[2:-1]:
+                                printColor(f"    {line}", "red")
+                        continue
+
+                    proc : Popen = Popen(
+                        ['git', 'commit', '-m', '"Automated commit"'],
                         cwd=dir,
+                        encoding='utf-8',
                         stdout=PIPE, stderr=PIPE
-                    ).wait()
+                    )
+                    output = proc.communicate()
+                    ret_code : int = proc.returncode
+                    if ret_code != 0:
+                        printColor("    ERROR: Error in commit:", "red")
+                        for out in output:
+                            for line in out.split("\n")[2:-1]:
+                                printColor(f"    {line}", "red")
+                        continue
+
+                    printColor("    - COMMIT MADE -", "green")
                     branch_clean = True
                 
                 # Push #
                 if branch_clean and push:
-                    Popen(
+                    proc : Popen = Popen(
                         ['git', 'push'],
                         cwd=dir,
+                        encoding='utf-8',
                         stdout=PIPE, stderr=PIPE
-                    ).wait()
+                    ).communicate()
+                    output = proc.communicate()
+                    ret_code : int = proc.returncode
+                    if ret_code != 0:
+                        printColor("    ERROR: Error in push:", "red")
+                        for out in output:
+                            for line in out.split("\n")[2:-1]:
+                                printColor(f"    {line}", "red")
+                        continue
+                    
+                    printColor("    - PUSH MADE -", "green")
         
         except KeyboardInterrupt:
             print("Keyboard Interrupt", "usual")
