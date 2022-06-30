@@ -65,7 +65,8 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     branch_clean = True
                 else:
                     for out in output:
-                        printColor(f"    {out}", "red")
+                        for line in out:
+                            printColor(f"    {line}", "red")
                 
                 # Commit #
                 if (not branch_clean) and commit:
@@ -80,7 +81,8 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in add:", "red")
                         for out in output:
-                            printColor(f"    {out}", "red")
+                            for line in out:
+                                printColor(f"    {line}", "red")
                         continue
 
                     proc : Popen = Popen(
@@ -94,7 +96,8 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in commit:", "red")
                         for out in output:
-                            printColor(f"    {out}", "red")
+                            for line in out:
+                                printColor(f"    {line}", "red")
                         continue
 
                     printColor("    - COMMIT MADE -", "green")
@@ -113,7 +116,8 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if ret_code != 0:
                         printColor("    -- ERROR: Error in push:", "red")
                         for out in output:
-                            printColor(f"    {out}", "red")
+                            for line in out:
+                                printColor(f"    {line}", "red")
                         continue
                     
                     printColor("    - PUSH MADE -", "green")
