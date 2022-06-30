@@ -181,14 +181,16 @@ def plotFromFile(
     skip_header:int=0,
     col1:int=0,
     col2:int=1,
+    ini:Optional[int]=None,
+    fin:Optional[int]=None,
     for_paper:bool=False,
     **kwargs
 ) -> None:
     data : List[List[float]] = np.genfromtxt(file_name, skip_header=skip_header, dtype=float, delimiter=delimiter)
     if not for_paper:
-        plot(ax, data[:,cols[col1]], data[:,col2], **kwargs)
+        plot(ax, data[ini:fin,cols[col1]], data[ini:fin,col2], **kwargs)
     else:
-        plotForPaper(ax, data[:,cols[col1]], data[:,col2], **kwargs)
+        plotForPaper(ax, data[ini:fin,cols[col1]], data[ini:fin,col2], **kwargs)
 
 
 __all__ = ["formattedFigure", "plot", "plotForPaper", "plotFromFile", "formatPlot"]
