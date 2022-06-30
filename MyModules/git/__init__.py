@@ -114,7 +114,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     output = proc.communicate()
                     ret_code : int = proc.returncode
                     if ret_code != 0:
-                        printColor("    ERROR: Error in push:", "red")
+                        printColor("    -- ERROR: Error in push:", "red")
                         for out in output:
                             for line in out.split("\n")[2:-1]:
                                 printColor(f"    {line}", "red")
