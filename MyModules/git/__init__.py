@@ -1,3 +1,4 @@
+from email.policy import default
 from typing import List
 from pathlib import Path
 from subprocess import Popen, PIPE
@@ -178,12 +179,15 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
 
 
 def git_check_main(dir_list:List[str]) -> None:
+    options : List[str] = ["status", "commit", "push", "pull"]
+    default_options : List[str] = ["--status", "--no-commit", "--no-push", "--no-pull"]
     status : bool = True
     commit : bool = False
     push   : bool = False
     pull   : bool = False
+    print_help : bool  = False
     for arg in sys.argv[1:]:
-        if arg in ["--status", "--no-commit", "--no-push", "--no-pull"]:
+        if arg in default_options:
             pass
         elif arg == "--no-status":
             status = False
@@ -193,11 +197,30 @@ def git_check_main(dir_list:List[str]) -> None:
             push = True
         elif arg == "--pull":
             pull = True
+        elif arg in ["--help", "-h"]:
+            print_help = True
         else:
-            print(f"Unknown argument: {arg}")
-            sys.exit(1)
+            printColor(f"Unknown argument: {arg}\n", "red")
+            print_help = True
     
-    git_check(dir_list, status=status, commit=commit, push=push, pull=pull)
+    if print_help:
+        print("Usage: python <git.py> <args>\n\nPossible arguments are:\n")
+        print(f"    --help, -h (prints this)")
+        for arg in options:
+            print(f"    --{arg}, --no-{arg}")
+        print("\nDefault options are: ", end="")
+        for arg in default_options:
+            print(f"{arg} " , end="")
+        print("")
+    
+    else:
+        print("Executing git_check with options: " +
+            "--" + ("" if status else "no-") + "status " +
+            "--" + ("" if commit else "no-") + "commit " +
+            "--" + ("" if push   else "no-") + "push "   +
+            "--" + ("" if pull   else "no-") + "pull "
+        )
+        git_check(dir_list, status=status, commit=commit, push=push, pull=pull)
 
 
 __all__ = ["git_check", "git_check_main"]
