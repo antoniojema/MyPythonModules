@@ -53,7 +53,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                 printColor("    - REMOTE UP TO DATE -", "green")
             
             # Status #
-            if status:
+            if status or commit or push or pull:
                 output = Popen(
                     ['git', 'status'],
                     cwd=dir,
@@ -92,7 +92,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
 
                 
                 # Commit #
-                if (not branch_clean) and commit:
+                if (not branch_clean) and (commit or push or pull):
                     proc : Popen = Popen(
                         ['git', 'add', '.'],
                         cwd=dir,
