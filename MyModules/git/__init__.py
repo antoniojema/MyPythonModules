@@ -109,7 +109,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                         continue
 
                     proc : Popen = Popen(
-                        ['git', 'commit', '-m', '"Automated commit"'],
+                        ['git', 'commit', '-m', '"Automatic commit"'],
                         cwd=dir,
                         encoding='utf-8',
                         stdout=PIPE, stderr=PIPE
