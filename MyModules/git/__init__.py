@@ -1,6 +1,7 @@
-from typing import List, Optional
+from typing import List
 from pathlib import Path
-from subprocess import Popen, CalledProcessError, PIPE
+from subprocess import Popen, PIPE
+import sys
 
 colors : dict = {
     "red"    : "\033[91m",
@@ -12,7 +13,7 @@ def printColor(text : str, color : str, endcolor : str = "usual", flush:bool=Tru
     print(f"{colors[color]}{text}{colors[endcolor]}", **kwargs, flush=flush)
 
 
-def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:bool=False) -> None:
+def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:bool=False, pull:bool=False) -> None:
     for dir in dir_list:
         msg : str = "-- Checking directory: " + str(dir) + " --"
         print("\n" + "-" * len(msg))
@@ -58,16 +59,36 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     encoding='utf-8',
                     stdout=PIPE, stderr=PIPE
                 ).communicate()
+                total_output = output[0] + output[1]
 
                 branch_clean : bool = False
-                if "nothing to commit" in (output[0] + output[1]):
-                    printColor("    - BRANCH CLEAN -", "green")
+                branch_ahead : bool = False
+                branch_behind : bool = False
+                branch_diverged : bool = False
+                if "nothing to commit" in total_output:
                     branch_clean = True
+                if "Your branch is behind" in total_output:
+                    branch_behind = True
+                elif "Your branch is ahead" in total_output:
+                    branch_ahead = True
+                elif "have diverged" in total_output:
+                    branch_diverged = True
+                
+                if branch_clean:
+                    printColor("    - BRANCH CLEAN -", "green")
                 else:
                     printColor("    -- BRANCH NOT CLEAN:", "red")
                     for out in output:
                         for line in out.split("\n"):
                             printColor(f"    {line}", "red")
+                
+                if branch_ahead:
+                    printColor("    -- BRANCH IS AHEAD REMOTE", color="red")
+                elif branch_behind:
+                    printColor("    -- BRANCH IS BEHIND REMOTE", color="red")
+                elif branch_diverged:
+                    printColor("    -- BRANCH DIVERGED FROM REMOTE", color="red")
+
                 
                 # Commit #
                 if (not branch_clean) and commit:
@@ -105,7 +126,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     branch_clean = True
                 
                 # Push #
-                if branch_clean and push:
+                if push and branch_clean and branch_ahead:
                     proc : Popen = Popen(
                         ['git', 'push'],
                         cwd=dir,
@@ -122,13 +143,55 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                         continue
                     
                     printColor("    - PUSH MADE -", "green")
+                
+                # Pull #
+                if pull and branch_clean and branch_behind:
+                    proc : Popen = Popen(
+                        ['git', 'pull'],
+                        cwd=dir,
+                        encoding='utf-8',
+                        stdout=PIPE, stderr=PIPE
+                    )
+                    output = proc.communicate()
+                    ret_code : int = proc.returncode
+                    if ret_code != 0:
+                        printColor("    -- ERROR: Error in pull:", "red")
+                        for out in output:
+                            for line in out.split("\n"):
+                                printColor(f"    {line}", "red")
+                        continue
+                    
+                    printColor("    - PULL MADE -", "green")
         
         except KeyboardInterrupt:
             print("Keyboard Interrupt", "usual")
             exit()
         
-        # except:
-        #     printColor("    - ERROR: Directory probably does not exist.", "red")
+        except:
+            printColor("    - ERROR: Directory probably does not exist.", "red")
 
 
-__all__ = ["git_check"]
+def git_check_main(dir_list:List[str]) -> None:
+    status : bool = True
+    commit : bool = False
+    push   : bool = False
+    pull   : bool = False
+    for arg in sys.argv[1:]:
+        if arg in ["--status", "--no-commit", "--no-push", "--no-pull"]:
+            pass
+        elif arg == "--no-status":
+            status = False
+        elif arg == "--commit":
+            commit = True
+        elif arg == "--push":
+            push = True
+        elif arg == "--pull":
+            pull = True
+        else:
+            print(f"Unknown argument: {arg}")
+            sys.exit(1)
+    
+    git_check(dir_list, status=status, commit=commit, push=push, pull=pull)
+
+
+__all__ = ["git_check", "git_check_main"]
