@@ -124,44 +124,50 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
 
                     printColor("    - COMMIT MADE -", "green")
                     branch_clean = True
+                    if not (branch_ahead or branch_behind or branch_diverged):
+                        branch_ahead = True
+                    if branch_behind:
+                        branch_behind = False
+                        branch_diverged = True
                 
-                # Push #
-                if push and branch_clean and branch_ahead:
-                    proc : Popen = Popen(
-                        ['git', 'push'],
-                        cwd=dir,
-                        encoding='utf-8',
-                        stdout=PIPE, stderr=PIPE
-                    )
-                    output = proc.communicate()
-                    ret_code : int = proc.returncode
-                    if ret_code != 0:
-                        printColor("    -- ERROR: Error in push:", "red")
-                        for out in output:
-                            for line in out.split("\n"):
-                                printColor(f"    {line}", "red")
-                        continue
+                if not branch_diverged:
+                    # Push #
+                    if push and branch_clean and branch_ahead:
+                        proc : Popen = Popen(
+                            ['git', 'push'],
+                            cwd=dir,
+                            encoding='utf-8',
+                            stdout=PIPE, stderr=PIPE
+                        )
+                        output = proc.communicate()
+                        ret_code : int = proc.returncode
+                        if ret_code != 0:
+                            printColor("    -- ERROR: Error in push:", "red")
+                            for out in output:
+                                for line in out.split("\n"):
+                                    printColor(f"    {line}", "red")
+                            continue
+                        
+                        printColor("    - PUSH MADE -", "green")
                     
-                    printColor("    - PUSH MADE -", "green")
-                
-                # Pull #
-                if pull and branch_clean and branch_behind:
-                    proc : Popen = Popen(
-                        ['git', 'pull'],
-                        cwd=dir,
-                        encoding='utf-8',
-                        stdout=PIPE, stderr=PIPE
-                    )
-                    output = proc.communicate()
-                    ret_code : int = proc.returncode
-                    if ret_code != 0:
-                        printColor("    -- ERROR: Error in pull:", "red")
-                        for out in output:
-                            for line in out.split("\n"):
-                                printColor(f"    {line}", "red")
-                        continue
-                    
-                    printColor("    - PULL MADE -", "green")
+                    # Pull #
+                    if pull and branch_clean and branch_behind:
+                        proc : Popen = Popen(
+                            ['git', 'pull'],
+                            cwd=dir,
+                            encoding='utf-8',
+                            stdout=PIPE, stderr=PIPE
+                        )
+                        output = proc.communicate()
+                        ret_code : int = proc.returncode
+                        if ret_code != 0:
+                            printColor("    -- ERROR: Error in pull:", "red")
+                            for out in output:
+                                for line in out.split("\n"):
+                                    printColor(f"    {line}", "red")
+                            continue
+                        
+                        printColor("    - PULL MADE -", "green")
         
         except KeyboardInterrupt:
             print("Keyboard Interrupt", "usual")
