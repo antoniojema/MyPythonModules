@@ -130,6 +130,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                     if branch_behind:
                         branch_behind = False
                         branch_diverged = True
+                        printColor("    -- WARNING: COMMIT MADE BRANCHE DIVERGE FROM REMOTE", "red")
                 
                 if not branch_diverged:
                     # Push #
