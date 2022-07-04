@@ -1,4 +1,3 @@
-from email.policy import default
 from typing import List
 from pathlib import Path
 from subprocess import Popen, PIPE
@@ -109,7 +108,7 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                         continue
 
                     proc : Popen = Popen(
-                        ['git', 'commit', '-m', '"Automatic commit"'],
+                        ['git', 'commit', '-m', '[Automatic commit]'],
                         cwd=dir,
                         encoding='utf-8',
                         stdout=PIPE, stderr=PIPE
