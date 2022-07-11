@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Set
 from pathlib import Path
 from subprocess import Popen, PIPE
 import sys
+import os
 
 colors : dict = {
     "red"    : "\033[91m",
@@ -13,7 +14,7 @@ def printColor(text : str, color : str, endcolor : str = "usual", flush:bool=Tru
     print(f"{colors[color]}{text}{colors[endcolor]}", **kwargs, flush=flush)
 
 
-def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:bool=False, pull:bool=False) -> None:
+def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bool=False, pull:bool=False) -> None:
     for dir in dir_list:
         msg : str = "-- Checking directory: " + str(dir) + " --"
         print("\n" + "-" * len(msg))
@@ -29,27 +30,30 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                 stdout=PIPE, stderr=PIPE
             ).communicate()
             
+            fetch_error : bool = False
             if "fatal" in output[1]:
+                fetch_error = True
                 if "Could not read from remote repository" in output[1]:
                     printColor("    -- ERROR: Remote repository could not be reached.", "red")
                 
                 elif "not a git repository" in output[1]:
                     printColor("    -- ERROR: Directory is not a git repository.", "red")
-                
+                    continue
+
                 else:
                     printColor("    -- ERROR: Unknown error in fetch:", "red")
                     printColor(output[1], "red")
-                
-                continue
+                    continue
 
-            all_up_to_date : bool = True
-            for out in output:
-                for line in out.split("\n")[2:-1]:
-                    if not "[up to date]" in line:
-                        all_up_to_date = False
-                        printColor(f"    {line}", "red")
-            if (all_up_to_date):
-                printColor("    - REMOTE UP TO DATE -", "green")
+            if not fetch_error:
+                all_up_to_date : bool = True
+                for out in output:
+                    for line in out.split("\n")[2:-1]:
+                        if not "[up to date]" in line:
+                            all_up_to_date = False
+                            printColor(f"    {line}", "red")
+                if (all_up_to_date):
+                    printColor("    - REMOTE UP TO DATE -", "green")
             
             # Status #
             if status or commit or push or pull:
@@ -131,7 +135,8 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                         branch_diverged = True
                         printColor("    -- WARNING: COMMIT MADE BRANCHE DIVERGE FROM REMOTE", "red")
                 
-                if not branch_diverged:
+                # Pull & push #
+                if not (branch_diverged or fetch_error):
                     # Push #
                     if push and branch_clean and branch_ahead:
                         proc : Popen = Popen(
@@ -171,22 +176,42 @@ def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:b
                         printColor("    - PULL MADE -", "green")
         
         except KeyboardInterrupt:
-            print("Keyboard Interrupt", "usual")
+            printColor("Keyboard Interrupt", "usual")
             exit()
         
         except:
             printColor("    - ERROR: Directory probably does not exist.", "red")
 
 
-def git_check_main(dir_list:List[str]) -> None:
+def printHelp(options: List[str], default_options: List[str]) -> None:
+        print("Usage: python <git.py> <args>\n\nPossible arguments are:\n")
+        print(f"    --help, -h (prints this)")
+        for arg in options:
+            print(f"    --{arg}, --no-{arg}")
+        print(f"    --repo/-r [default/<directory>] (specifies)")
+        print("\nDefault options are: ", end="")
+        for arg in default_options:
+            print(f"{arg} " , end="")
+        print("")
+
+
+def printHelpAndExit(options: List[str], default_options: List[str], exit_code: int = 0) -> None:
+    printHelp(options, default_options)
+    exit(exit_code)
+
+
+def git_check_main(dir_list:List[str] = []) -> None:
+    # Read flags #
     options : List[str] = ["status", "commit", "push", "pull"]
     default_options : List[str] = ["--status", "--no-commit", "--no-push", "--no-pull"]
     status : bool = True
     commit : bool = False
     push   : bool = False
     pull   : bool = False
-    print_help : bool  = False
-    for arg in sys.argv[1:]:
+    arg_i = 1
+    real_dir_list : List[str] = []
+    while(arg_i < len(sys.argv)):
+        arg : str = sys.argv[arg_i]
         if arg in default_options:
             pass
         elif arg == "--no-status":
@@ -197,30 +222,59 @@ def git_check_main(dir_list:List[str]) -> None:
             push = True
         elif arg == "--pull":
             pull = True
+        elif arg in ["--repo", "-r"]:
+            flag : str = arg
+            arg_i += 1
+            if arg_i == len(sys.argv):
+                printColor(f"ERROR: Missing argument for {flag}\n", "red")
+                printHelpAndExit(options, default_options, 1)
+            else:
+                arg = sys.argv[arg_i]
+                if arg == "default":
+                    real_dir_list.extend(dir_list)
+                else:
+                    real_dir_list.append(arg)
         elif arg in ["--help", "-h"]:
-            print_help = True
+            printHelpAndExit(options, default_options)
+            exit()
         else:
-            printColor(f"Unknown argument: {arg}\n", "red")
-            print_help = True
+            printColor(f"ERROR: Unknown argument: {arg}\n", "red")
+            printHelpAndExit(options, default_options, 1)
+        arg_i += 1
+    del arg_i
     
-    if print_help:
-        print("Usage: python <git.py> <args>\n\nPossible arguments are:\n")
-        print(f"    --help, -h (prints this)")
-        for arg in options:
-            print(f"    --{arg}, --no-{arg}")
-        print("\nDefault options are: ", end="")
-        for arg in default_options:
-            print(f"{arg} " , end="")
-        print("")
+    # Set directory list (default if none specified) #
+    if len(real_dir_list) == 0:
+        if len(dir_list) == 0:
+            printColor("ERROR: No directories to check\n", "red")
+            printHelpAndExit(options, default_options, 1)
+        else:
+            real_dir_list = dir_list
+            del dir_list
     
-    else:
-        print("Executing git_check with options: " +
-            "--" + ("" if status else "no-") + "status " +
-            "--" + ("" if commit else "no-") + "commit " +
-            "--" + ("" if push   else "no-") + "push "   +
-            "--" + ("" if pull   else "no-") + "pull "
-        )
-        git_check(dir_list, status=status, commit=commit, push=push, pull=pull)
+    # Run #
+    print("Executing git_check with options: " +
+        "--" + ("" if status else "no-") + "status " +
+        "--" + ("" if commit else "no-") + "commit " +
+        "--" + ("" if push   else "no-") + "push "   +
+        "--" + ("" if pull   else "no-") + "pull "
+    )
+    
+    dir_set : Set[Path] = set()
+    for dir in real_dir_list:
+        path = Path(dir).absolute()
+        if not path.is_dir():
+            printColor(f"ERROR: {dir} is not a directory\n", "red")
+            printHelpAndExit(options, default_options, 1)
+        else:
+            dir_set.add(path)
+    del real_dir_list
+
+    print("Directories to ckeck:")
+    for dir in dir_set:
+        print(f"    {dir}")
+    
+    git_check(dir_set, status=status, commit=commit, push=push, pull=pull)
 
 
 __all__ = ["git_check", "git_check_main"]
