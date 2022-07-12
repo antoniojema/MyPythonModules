@@ -1,20 +1,24 @@
 from typing import List, Set
 from pathlib import Path
 from subprocess import Popen, PIPE
-import sys
-import os
-
-colors : dict = {
-    "red"    : "\033[91m",
-    "green"  : "\033[92m",
-    "usual"  : "\033[0m",
-}
-
-def printColor(text : str, color : str, endcolor : str = "usual", flush:bool=True, **kwargs) -> None:
-    print(f"{colors[color]}{text}{colors[endcolor]}", **kwargs, flush=flush)
+import sys, colorama, os, psutil
 
 
-def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bool=False, pull:bool=False) -> None:
+# Init colorama if windows #
+if ("cmd" in str(psutil.Process(os.getpid()).parent().name)):
+    colorama.init(autoreset=True)
+
+
+def printColor(
+    text : str,
+    color : str,
+    endcolor : str = colorama.Style.RESET_ALL,
+    flush:bool=True,
+    **kwargs) -> None:
+    print(f"{color}{text}{endcolor}", **kwargs, flush=flush)
+
+
+def git_check(dir_list : List[Path], status:bool=True, commit:bool=False, push:bool=False, pull:bool=False) -> None:
     for dir in dir_list:
         msg : str = "-- Checking directory: " + str(dir) + " --"
         print("\n" + "-" * len(msg))
@@ -34,15 +38,15 @@ def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bo
             if "fatal" in output[1]:
                 fetch_error = True
                 if "Could not read from remote repository" in output[1]:
-                    printColor("    -- ERROR: Remote repository could not be reached.", "red")
+                    printColor("    -- ERROR: Remote repository could not be reached.", colorama.Fore.RED)
                 
                 elif "not a git repository" in output[1]:
-                    printColor("    -- ERROR: Directory is not a git repository.", "red")
+                    printColor("    -- ERROR: Directory is not a git repository.", colorama.Fore.RED)
                     continue
 
                 else:
-                    printColor("    -- ERROR: Unknown error in fetch:", "red")
-                    printColor(output[1], "red")
+                    printColor("    -- ERROR: Unknown error in fetch:", colorama.Fore.RED)
+                    printColor(output[1], colorama.Fore.RED)
                     continue
 
             if not fetch_error:
@@ -51,9 +55,9 @@ def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bo
                     for line in out.split("\n")[2:-1]:
                         if not "[up to date]" in line:
                             all_up_to_date = False
-                            printColor(f"    {line}", "red")
+                            printColor(f"    {line}", colorama.Fore.RED)
                 if (all_up_to_date):
-                    printColor("    - REMOTE UP TO DATE -", "green")
+                    printColor("    - REMOTE UP TO DATE -", colorama.Fore.GREEN)
             
             # Status #
             if status or commit or push or pull:
@@ -79,19 +83,19 @@ def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bo
                     branch_diverged = True
                 
                 if branch_clean:
-                    printColor("    - BRANCH CLEAN -", "green")
+                    printColor("    - BRANCH CLEAN -", colorama.Fore.GREEN)
                 else:
-                    printColor("    -- BRANCH NOT CLEAN:", "red")
+                    printColor("    -- BRANCH NOT CLEAN:", colorama.Fore.RED)
                     for out in output:
                         for line in out.split("\n"):
-                            printColor(f"    {line}", "red")
+                            printColor(f"    {line}", colorama.Fore.RED)
                 
                 if branch_ahead:
-                    printColor("    -- BRANCH IS AHEAD REMOTE", color="red")
+                    printColor("    -- BRANCH IS AHEAD REMOTE", colorama.Fore.RED)
                 elif branch_behind:
-                    printColor("    -- BRANCH IS BEHIND REMOTE", color="red")
+                    printColor("    -- BRANCH IS BEHIND REMOTE", colorama.Fore.RED)
                 elif branch_diverged:
-                    printColor("    -- BRANCH DIVERGED FROM REMOTE", color="red")
+                    printColor("    -- BRANCH DIVERGED FROM REMOTE", colorama.Fore.RED)
 
                 
                 # Commit #
@@ -105,10 +109,10 @@ def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bo
                     output = proc.communicate()
                     ret_code : int = proc.returncode
                     if ret_code != 0:
-                        printColor("    -- ERROR: Error in add:", "red")
+                        printColor("    -- ERROR: Error in add:", colorama.Fore.RED)
                         for out in output:
                             for line in out.split("\n"):
-                                printColor(f"    {line}", "red")
+                                printColor(f"    {line}", colorama.Fore.RED)
                         continue
 
                     proc : Popen = Popen(
@@ -120,20 +124,20 @@ def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bo
                     output = proc.communicate()
                     ret_code : int = proc.returncode
                     if ret_code != 0:
-                        printColor("    -- ERROR: Error in commit:", "red")
+                        printColor("    -- ERROR: Error in commit:", colorama.Fore.RED)
                         for out in output:
                             for line in out.split("\n"):
-                                printColor(f"    {line}", "red")
+                                printColor(f"    {line}", colorama.Fore.RED)
                         continue
 
-                    printColor("    - COMMIT MADE -", "green")
+                    printColor("    - COMMIT MADE -", colorama.Fore.GREEN)
                     branch_clean = True
                     if not (branch_ahead or branch_behind or branch_diverged):
                         branch_ahead = True
                     if branch_behind:
                         branch_behind = False
                         branch_diverged = True
-                        printColor("    -- WARNING: COMMIT MADE BRANCHE DIVERGE FROM REMOTE", "red")
+                        printColor("    -- WARNING: COMMIT MADE BRANCHE DIVERGE FROM REMOTE", colorama.Fore.RED)
                 
                 # Pull & push #
                 if not (branch_diverged or fetch_error):
@@ -148,13 +152,13 @@ def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bo
                         output = proc.communicate()
                         ret_code : int = proc.returncode
                         if ret_code != 0:
-                            printColor("    -- ERROR: Error in push:", "red")
+                            printColor("    -- ERROR: Error in push:", colorama.Fore.RED)
                             for out in output:
                                 for line in out.split("\n"):
-                                    printColor(f"    {line}", "red")
+                                    printColor(f"    {line}", colorama.Fore.RED)
                             continue
                         
-                        printColor("    - PUSH MADE -", "green")
+                        printColor("    - PUSH MADE -", colorama.Fore.GREEN)
                     
                     # Pull #
                     if pull and branch_clean and branch_behind:
@@ -167,20 +171,20 @@ def git_check(dir_list : Set[Path], status:bool=True, commit:bool=False, push:bo
                         output = proc.communicate()
                         ret_code : int = proc.returncode
                         if ret_code != 0:
-                            printColor("    -- ERROR: Error in pull:", "red")
+                            printColor("    -- ERROR: Error in pull:", colorama.Fore.RED)
                             for out in output:
                                 for line in out.split("\n"):
-                                    printColor(f"    {line}", "red")
+                                    printColor(f"    {line}", colorama.Fore.RED)
                             continue
                         
-                        printColor("    - PULL MADE -", "green")
+                        printColor("    - PULL MADE -", colorama.Fore.GREEN)
         
         except KeyboardInterrupt:
-            printColor("Keyboard Interrupt", "usual")
+            print("Keyboard Interrupt")
             exit()
         
         except:
-            printColor("    - ERROR: Directory probably does not exist.", "red")
+            printColor("    - ERROR: Directory probably does not exist.", colorama.Fore.RED)
 
 
 def printHelp(options: List[str], default_options: List[str]) -> None:
@@ -226,7 +230,7 @@ def git_check_main(dir_list:List[str] = []) -> None:
             flag : str = arg
             arg_i += 1
             if arg_i == len(sys.argv):
-                printColor(f"ERROR: Missing argument for {flag}\n", "red")
+                printColor(f"ERROR: Missing argument for {flag}\n", colorama.Fore.RED)
                 printHelpAndExit(options, default_options, 1)
             else:
                 arg = sys.argv[arg_i]
@@ -238,7 +242,7 @@ def git_check_main(dir_list:List[str] = []) -> None:
             printHelpAndExit(options, default_options)
             exit()
         else:
-            printColor(f"ERROR: Unknown argument: {arg}\n", "red")
+            printColor(f"ERROR: Unknown argument: {arg}\n", colorama.Fore.RED)
             printHelpAndExit(options, default_options, 1)
         arg_i += 1
     del arg_i
@@ -246,7 +250,7 @@ def git_check_main(dir_list:List[str] = []) -> None:
     # Set directory list (default if none specified) #
     if len(real_dir_list) == 0:
         if len(dir_list) == 0:
-            printColor("ERROR: No directories to check\n", "red")
+            printColor("ERROR: No directories to check\n", colorama.Fore.RED)
             printHelpAndExit(options, default_options, 1)
         else:
             real_dir_list = dir_list
@@ -264,17 +268,19 @@ def git_check_main(dir_list:List[str] = []) -> None:
     for dir in real_dir_list:
         path = Path(dir).absolute()
         if not path.is_dir():
-            printColor(f"ERROR: {dir} is not a directory\n", "red")
+            printColor(f"ERROR: {dir} is not a directory\n", colorama.Fore.RED)
             printHelpAndExit(options, default_options, 1)
         else:
             dir_set.add(path)
-    del real_dir_list
+    
+    real_dir_list = sorted(dir_set)
+    del dir_set
 
     print("Directories to ckeck:")
-    for dir in dir_set:
+    for dir in real_dir_list:
         print(f"    {dir}")
     
-    git_check(dir_set, status=status, commit=commit, push=push, pull=pull)
+    git_check(real_dir_list, status=status, commit=commit, push=push, pull=pull)
 
 
 __all__ = ["git_check", "git_check_main"]
