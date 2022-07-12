@@ -181,7 +181,7 @@ def git_check_repo(dir : Path, options : GitOptions) -> bool:
                 if branch_behind:
                     branch_behind = False
                     branch_diverged = True
-                    printColor("    -- WARNING: COMMIT MADE BRANCHE DIVERGE FROM REMOTE", stdcolors["brightred"])
+                    printColor("    -- WARNING: COMMIT MADE BRANCHE DIVERGE FROM REMOTE", stdcolors["brightyellow"])
             
             # Pull & push #
             if not (branch_diverged or fetch_error):
