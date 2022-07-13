@@ -1,4 +1,5 @@
-from typing import List, Set, Optional
+from tabnanny import check
+from typing import List, Set, Optional, Union
 from pathlib import Path
 from subprocess import Popen, PIPE
 import sys, colorama, os, psutil
@@ -234,42 +235,66 @@ def git_check_repo(dir : Path, options : GitOptions) -> bool:
     return True
 
 
-def git_check_repos(dir_list : List[Path], options : GitOptions) -> None:
+def git_check_repos(
+    dir_list : List[Path],
+    ignore_set : Set[Path],
+    options : GitOptions,
+    checked_dirs : Set[Path],
+) -> None:
     for dir in dir_list:
-        git_check_repo(dir, options)
+        if dir not in ignore_set:
+            if dir not in checked_dirs:
+                git_check_repo(dir, options)
+                checked_dirs.add(dir)
 
 
 def git_check_directories(
     dir_list : List[Path],
+    ignore_set : Set[Path],
     options : GitOptions,
     recursive : bool,
     level : int,
     recursive_max_level : Optional[int],
+    checked_dirs : Set[Path] = set(),
 ) -> None:
     for dir in dir_list:
-        subdir_list = [dir/d for d in os.listdir(dir) if os.path.isdir(dir/d)]
-        for d in subdir_list:
-            is_repo = git_check_repo(d, options)
-            if recursive and not is_repo:
-                if recursive_max_level is None:
-                    git_check_directories([d], options, recursive, level+1, recursive_max_level)
-                elif level < recursive_max_level:
-                    git_check_directories([d], options, recursive, level+1, recursive_max_level)
+        if dir not in ignore_set:
+            subdir_list = [dir/d for d in os.listdir(dir) if os.path.isdir(dir/d)]
+            for d in subdir_list:
+                if d not in ignore_set:
+                    if d not in checked_dirs:
+                        is_repo = git_check_repo(d, options)
+                        checked_dirs.add(d)
+                    if recursive and not is_repo:
+                        do_check : bool = False
+                        if recursive_max_level is None:
+                            do_check = True
+                        elif level < recursive_max_level:
+                            do_check = True
+                        if do_check:
+                            git_check_directories([d], options, recursive, level+1, recursive_max_level)
 
 
 def git_check(
     dir_list : List[Path],
     search_list : List[Path],
+    ignore_set : Set[Path],
     options : GitOptions,
     recursive : bool,
     recursive_max_level : Optional[int]
 ) -> None:
-    git_check_repos(dir_list, options)
-    git_check_directories(search_list, options, recursive, 0, recursive_max_level)
+    checked_dirs : Set[Path] = set()
+    git_check_repos(dir_list, ignore_set, options, checked_dirs)
+    git_check_directories(search_list, ignore_set, options, recursive, 0, recursive_max_level, checked_dirs)
 
 
 def printHelp(options: List[str], default_options: List[str]) -> None:
-        print("Usage: python <git.py> <args>\n\nPossible arguments are:\n")
+        print("\nUsage:\n")
+        print("    python <git.py> <args>")
+        print("    or")
+        print("    python -m <git_module> <args>\n")
+
+        print("Usual arguments are:\n")
         print(f"    --help, -h (Prints this)")
         for arg in options:
             print(f"    --{arg}, --no-{arg}")
@@ -277,15 +302,35 @@ def printHelp(options: List[str], default_options: List[str]) -> None:
         for arg in default_options:
             print(f"{arg} " , end="")
 
-        print("\n\nOther possible flags are:\n")
-        print(f"    --repo/-r [default/<directory>]")
-        print(f"        Specifies a repository directory.\n")
+        print("\n\nOther possible arguments are:\n")
+        print(f"    --repo/-r [default/<dir1>] [default/<dir2>] ...\n")
+        print(f"        Specifies directories containing a git repository.")
+        print(f"        If used, the argument passed to git_check_main()")
+        print(f"        are ignored unless 'default' is specified.")
+        print("")
 
-        print(f"    --search/-s [default/<directory>]")
-        print(f"        Specifies root directory for subdirectories search.\n")
+        print(f"    --search/-s [default/<dir1>] [default/<dir2>] ...\n")
+        print(f"        Specifies root directories to search for subdirectories")
+        print(f"        containing git repositories.")
+        print(f"        If used, the argument passed to git_check_main()")
+        print(f"        are ignored unless 'default' is specified.")
+        print("")
         
-        print(f"    --recursive [all/<n>]")
-        print(f"        Enables recursive search for --search subdirectories specifing the recursivity level. Disabled by default.\n")
+        print(f"    --ignore/-i [none/<dir1>] [none/<dir2>] ...\n")
+        print(f"        Specifies a directory to ignore. If it is part of the tree")
+        print(f"        under a directory specified with --search, all the children")
+        print(f"        will be ignored as well, unless they are also specified in")
+        print(f"        --repo or --search.")
+        print(f"        If 'none' is specified, all previous specified directories")
+        print(f"        (along with the ones passed as argument to git_check_main())")
+        print(f"        will not be ignored. Afterwards, new directories can be specified.")
+        print("")
+        
+        print(f"    --recursive [all/<n>]\n")
+        print(f"        Sets the depth level for the --search directories. Default is 0.")
+        print(f"        If 'all' is specified, the depth is infinite.")
+        print(f"        WARNING: Enabling recursivity can be dangerous.")
+        print("")
 
 
 def printHelpAndExit(options: List[str], default_options: List[str], exit_code: int = 0) -> None:
@@ -293,7 +338,11 @@ def printHelpAndExit(options: List[str], default_options: List[str], exit_code: 
     exit(exit_code)
 
 
-def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> None:
+def git_check_main(
+    dir_list    : List[Union[str,Path]] = [],
+    search_list : List[Union[str,Path]] = [],
+    ignore_list : List[Union[str,Path]] = []
+) -> None:
     # Read flags #
     default_options : List[str] = ["--status", "--no-commit", "--no-push", "--no-pull"]
     
@@ -303,6 +352,8 @@ def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> Non
     real_search_list : List[str] = []
     recursive_max_level : int = 0
     recursive : bool = False
+    real_ignore_list : List[str] = []
+    real_ignore_list.extend(ignore_list)
     while(arg_i < len(sys.argv)):
         arg : str = sys.argv[arg_i]
         if arg in default_options:
@@ -317,34 +368,80 @@ def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> Non
             options.pull = True
         elif arg in ["--repo", "-r"]:
             flag : str = arg
-            arg_i += 1
-            if arg_i == len(sys.argv):
-                printColor(f"ERROR: Missing argument for {flag}\n", stdcolors["brightred"])
+
+            print_help : bool = False
+            if arg_i+1 == len(sys.argv):
+                print_help = True
+            elif sys.argv[arg_i+1][0] == "-":
+                print_help = True
+            if print_help:
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
                 printHelpAndExit(options.list, default_options, 1)
-            else:
+
+            arg_i += 1
+            while arg_i < len(sys.argv):
                 arg = sys.argv[arg_i]
                 if arg == "default":
                     real_dir_list.extend(dir_list)
-                else:
+                elif arg[0] != "-":
                     real_dir_list.append(arg)
+                else:
+                    break
+                arg_i += 1
+            arg_i -= 1
         elif arg in ["--search", "-s"]:
             flag : str = arg
-            arg_i += 1
-            if arg_i == len(sys.argv):
-                printColor(f"ERROR: Missing argument for {flag}\n", stdcolors["brightred"])
+
+            print_help : bool = False
+            if arg_i+1 == len(sys.argv):
+                print_help = True
+            elif sys.argv[arg_i+1][0] == "-":
+                print_help = True
+            if print_help:
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
                 printHelpAndExit(options.list, default_options, 1)
-            else:
+            
+            arg_i += 1
+            while arg_i < len(sys.argv):
                 arg = sys.argv[arg_i]
                 if arg == "default":
                     real_search_list.extend(search_list)
-                else:
+                elif arg[0] != "-":
                     real_search_list.append(arg)
+                else:
+                    break
+                arg_i += 1
+            arg_i -= 1
+        elif arg in ["--ignore", "-i"]:
+            flag : str = arg
+
+            print_help : bool = False
+            if arg_i+1 == len(sys.argv):
+                print_help = True
+            elif sys.argv[arg_i+1][0] == "-":
+                print_help = True
+            if print_help:
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
+                printHelpAndExit(options.list, default_options, 1)
+            
+            arg_i += 1
+            while arg_i < len(sys.argv):
+                arg = sys.argv[arg_i]
+                if arg == "none":
+                    real_ignore_list = []
+                elif arg[0] != "-":
+                    real_ignore_list.append(arg)
+                else:
+                    break
+                arg_i += 1
+            arg_i -= 1
+                
         elif arg == "--recursive":
             recursive = True
             flag : str = arg
             arg_i += 1
             if arg_i == len(sys.argv):
-                printColor(f"ERROR: Missing argument for {flag}\n", stdcolors["brightred"])
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
                 printHelpAndExit(options.list, default_options, 1)
             else:
                 arg = sys.argv[arg_i]
@@ -352,14 +449,14 @@ def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> Non
                     recursive_max_level = None
                 else:
                     if not arg.isdigit():
-                        printColor(f"ERROR: Argument for {flag} must be an unsigned integer\n", stdcolors["brightred"])
+                        printColor(f"ERROR: Argument for {flag} must be an unsigned integer or 'all'", stdcolors["brightred"])
                         printHelpAndExit(options.list, default_options, 1)
                     recursive_max_level = int(arg)
         elif arg in ["--help", "-h"]:
             printHelpAndExit(options.list, default_options)
             exit()
         else:
-            printColor(f"ERROR: Unknown argument: {arg}\n", stdcolors["brightred"])
+            printColor(f"ERROR: Unknown argument: {arg}", stdcolors["brightred"])
             printHelpAndExit(options.list, default_options, 1)
         arg_i += 1
     del arg_i
@@ -367,7 +464,7 @@ def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> Non
     # Set directory and search lists (default if none specified) #
     if len(real_dir_list) == 0 and len(real_search_list) == 0:
         if len(dir_list) == 0 and len(search_list) == 0:
-            printColor("ERROR: No directories specified\n", stdcolors["brightred"])
+            printColor("ERROR: No directories specified", stdcolors["brightred"])
             printHelpAndExit(options.list, default_options, 1)
         real_dir_list = dir_list
         real_search_list = search_list
@@ -386,13 +483,14 @@ def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> Non
     elif recursive and recursive_max_level > 0:
         recursive_warning = True
     if recursive_warning:
-        printColor("\nWARNING: Recursive search enabled. This can be dangerous.\n", stdcolors["brightyellow"])
+        rec_str : str = "ALL" if recursive_max_level is None else str(recursive_max_level)
+        printColor(f"\nWARNING: Recursive search set to {rec_str}. This can be dangerous.", stdcolors["brightyellow"])
 
     dir_set : Set[Path] = set()
     for dir in real_dir_list:
         path = Path(dir).absolute()
         if not path.is_dir():
-            printColor(f"ERROR: {dir} is not a directory\n", stdcolors["brightred"])
+            printColor(f"ERROR: {dir} is not a directory", stdcolors["brightred"])
             printHelpAndExit(options.list, default_options, 1)
         else:
             dir_set.add(path)
@@ -401,13 +499,24 @@ def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> Non
     for dir in real_search_list:
         path = Path(dir).absolute()
         if not path.is_dir():
-            printColor(f"ERROR: {dir} is not a directory\n", stdcolors["brightred"])
+            printColor(f"ERROR: {dir} is not a directory", stdcolors["brightred"])
             printHelpAndExit(options.list, default_options, 1)
         else:
             search_set.add(path)
+
+    # Ignore directories #
+    ignore_set : Set[Path] = set()
+    for dir in real_ignore_list:
+        path = Path(dir).absolute()
+        if not path.is_dir():
+            printColor(f"ERROR: {dir} is not a directory", stdcolors["brightred"])
+            printHelpAndExit(options.list, default_options, 1)
+        else:
+            ignore_set.add(path)
     
     real_dir_list = sorted(dir_set)
     real_search_list = sorted(search_set)
+    real_ignore_list = sorted(ignore_set)
     del dir_set, search_set
 
     if len(real_dir_list) > 0:
@@ -416,11 +525,17 @@ def git_check_main(dir_list:List[str] = [], search_list : List[str] = []) -> Non
             print(f"    {dir}")
 
     if len(real_search_list) > 0:
-        print("\nDirectories to ckeck:")
+        print("\nRoot directories to check:")
         for dir in real_search_list:
             print(f"    {dir}")
     
-    git_check(real_dir_list, real_search_list, options, recursive, recursive_max_level)
+    if len(real_ignore_list) > 0:
+        print("\nDirectories to ignore:")
+        for dir in real_ignore_list:
+            print(f"    {dir}")
+    
+    git_check(real_dir_list, real_search_list, ignore_set, options, recursive, recursive_max_level)
 
 
 __all__ = ["git_check", "git_check_main"]
+
