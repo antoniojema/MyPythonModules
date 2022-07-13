@@ -272,7 +272,7 @@ def git_check_directories(
                         elif level < recursive_max_level:
                             do_check = True
                         if do_check:
-                            git_check_directories([d], options, recursive, level+1, recursive_max_level)
+                            git_check_directories([d], ignore_set, options, recursive, level+1, recursive_max_level, checked_dirs)
 
 
 def git_check(

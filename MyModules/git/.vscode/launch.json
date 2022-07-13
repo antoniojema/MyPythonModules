@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["-r", "D:\\repos\\PythonModules", "-s", "D:\\repos"]
+            "args": ["-s", "D:", "--recursive", "all"]
         }
     ]
 }
