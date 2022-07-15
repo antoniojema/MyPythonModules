@@ -264,6 +264,7 @@ def purgeJSON() -> None:
         exitOnError("YOU SHOULD NEVER SEE THIS: json.load() did not return dictionary.")
     
     print("")
+    del_configs = []
     something_done : bool = False
     for label in data:
         config = data[label]
@@ -282,6 +283,20 @@ def purgeJSON() -> None:
                         something_done = True
                         print(f"Purging: {label} > {t} > {dir}")
                         config[t].remove(dir)
+        del_config : bool = True
+        for t in config:
+            if len(config[t]) > 0:
+                del_config = False
+                break
+        if del_config:
+            something_done = True
+            del_configs.append(label)
+    
+    if len(del_configs) > 0:
+        printColor("\nThe following configurations do not hold valid directories anymore and will be deleted:", stdcolors["yellow"])
+        for label in del_configs:
+            printColor(f"    {label}", stdcolors["yellow"])
+            del data[label]
 
     with json_path.open("w") as fout:
         json.dump(data, fout, indent=4)

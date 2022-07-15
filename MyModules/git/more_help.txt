@@ -29,6 +29,29 @@ Other possible arguments are:
         If 'all' is specified, the depth is infinite.
         WARNING: Enabling recursivity can be dangerous.
 
-    TODO AJMV CONFIGS
-    --list-config --list-configs --list-configs-verbose
-    --use-config --set-config --del-config --purge-configs
+    --list-configs(-verbose)
+
+        Lists all the configurations for the repositories.
+        Verbose mode lists all directories for every configuration.
+
+    --list-config <config-name-1> <config-name-2> ...
+    
+        Lists all the directories for the specified configuration.
+
+    --use-config <config-name-1> <config-name-2> ...
+    
+        Adds the specified configurations to the execution.
+
+    --set-config <config-name-1> <config-name-2> ...
+    
+        Sets the specified configurations with the execution.
+        If they already exist, they are overwritten.
+
+    --del-config <config-name-1> <config-name-2> ...
+    
+        Deletes the specified configurations.
+
+    --purge-configs
+    
+        Deletes all the directories that do not exist anymore in
+        all configurations.
