@@ -1,0 +1,15 @@
+Usage:
+
+    python <git.py> <args>
+    or
+    python -m <git_module> <args>
+
+Usual arguments are:
+
+    --help, -h (Prints this)
+    --status, --no-status
+    --commit, --no-commit
+    --push, --no-push
+    --pull, --no-pull
+
+Default options are: --status --no-commit --no-push --no-pull

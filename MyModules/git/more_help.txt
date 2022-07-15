@@ -1,0 +1,34 @@
+Other possible arguments are:
+
+    --repo/-r [default/<dir1>] [default/<dir2>] ...
+
+        Specifies directories containing a git repository.
+        If used, the argument passed to git_check_main()
+        are ignored unless 'default' is specified.
+
+    --search/-s [default/<dir1>] [default/<dir2>] ...
+
+        Specifies root directories to search for subdirectories
+        containing git repositories.
+        If used, the argument passed to git_check_main()
+        are ignored unless 'default' is specified.
+
+    --ignore/-i [none/<dir1>] [none/<dir2>] ...
+
+        Specifies a directory to ignore. If it is part of the tree
+        under a directory specified with --search, all the children
+        will be ignored as well, unless they are also specified in
+        --repo or --search.
+        If 'none' is specified, all previous specified directories
+        (along with the ones passed as argument to git_check_main())
+        will not be ignored. Afterwards, new directories can be specified.
+
+    --recursive [all/<n>]
+
+        Sets the depth level for the --search directories. Default is 0.
+        If 'all' is specified, the depth is infinite.
+        WARNING: Enabling recursivity can be dangerous.
+
+    TODO AJMV CONFIGS
+    --list-config --list-configs --list-configs-verbose
+    --use-config --set-config --del-config --purge-configs

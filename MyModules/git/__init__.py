@@ -3,6 +3,7 @@ from typing import List, Set, Optional, Union
 from pathlib import Path
 from subprocess import Popen, PIPE
 import sys, colorama, os, psutil
+import json
 
 
 # Init colorama if windows #
@@ -30,8 +31,14 @@ def printColor(
     color : str,
     endcolor : str = colorama.Style.RESET_ALL,
     flush:bool=True,
-    **kwargs) -> None:
+    **kwargs
+) -> None:
     print(f"{color}{text}{endcolor}", **kwargs, flush=flush)
+
+
+def exitOnError(text : str, **kwargs):
+    printColor(text, stdcolors["brightred"], **kwargs)
+    exit(1)
 
 
 class GitOptions:
@@ -47,6 +54,243 @@ class GitOptions:
         self.commit = commit
         self.push = push
         self.pull = pull
+
+
+def printBasicHelp(options: List[str], default_options: List[str]) -> None:
+    print("")
+    with open(Path(__file__).parent / "basic_help.txt", "r") as fin:
+        for line in fin:
+            print(line, end="")
+
+
+def printHelp(options: List[str], default_options: List[str]) -> None:
+    printBasicHelp(options, default_options)
+    print("")
+    with open(Path(__file__).parent / "more_help.txt", "r") as fin:
+        for line in fin:
+            print(line, end="")
+
+
+def printHelpAndExit(options: List[str], default_options: List[str], only_basic : bool = False, exit_code: int = 0) -> None:
+    if only_basic:
+        printBasicHelp(options, default_options)
+        print(f"\nFor more detailed information, use flag --help/-h")
+    else:
+        printHelp(options, default_options)
+    exit(exit_code)
+
+
+def createIfNotExists(path : Path, dir_error : bool = True) -> None:
+    json_path = Path(__file__).parent / "config.json"
+    if not json_path.exists():
+        with open(json_path, "w") as fout:
+            json.dump(dict(), fout)
+    elif dir_error and json_path.is_dir():
+        exitOnError(f"YOU SHOULD NEVER SEE THIS: {path} is a directory.")
+
+
+def listOneConfig(config_list : dict, label : str) -> None:
+    error : bool = True
+    config = config_list[label]
+    if not type(config) is dict:
+        exitOnError(f"YOU SHOULD NEVER SEE THIS: Configuration {label} is not a dictionary.")
+    types : dict = {"repos" : "Repositories", "search" : "Search directories", "ignore" : "Ignore directories"}
+    for t in types:
+        if t in config:
+         if len(config[t]) > 0:
+            if not type(config[t]) is list:
+                exitOnError(f"YOU SHOULD NEVER SEE THIS: A type in the config {label} is not a list.")
+            error = False
+            print(f"\n        {types[t]}:")
+            for dir in config[t]:
+                if not type(dir) is str:
+                    exitOnError(f"YOU SHOULD NEVER SEE THIS: A directory in the config {label} is not a string.")
+                print(f"            {dir}")
+    
+    if error:
+        exitOnError(f"Error: configuration {label} is empty.")
+
+
+def listConfigsAndExit(specific : List[str] = [], verbose : bool = False) -> None:
+    json_path : Path = Path(__file__).parent / "config.json"
+    createIfNotExists(json_path)
+    
+    with json_path.open() as fin:
+        data = json.load(fin)
+    if not type(data) is dict:
+        exitOnError("YOU SHOULD NEVER SEE THIS: json.load() did not return dictionary.")
+    
+    if len(specific) == 0:
+        if len(data) == 0:
+            print("\nThere are no saved configurations.")
+        else:
+            print("\nConfigurations:")    
+            for key in data:
+                print(('\n' if verbose else '') + f"    {key}")
+                if (verbose):
+                    listOneConfig(data, key)
+    else:
+        print("\nConfigurations:")
+        for key in specific:
+            if key not in data:
+                exitOnError(f"ERROR: Configuration {key} does not exist.")
+        print("\nConfigurations:")
+        for key in specific:
+            print(f"\n    {key}")
+            listOneConfig(data, key)
+    
+    exit(0)
+
+
+def readJSON(
+    use_config_list : List[str],
+    dir_list        : List[str],
+    search_list     : List[str],
+    ignore_list     : List[str]
+) -> None:
+    json_path : Path = Path(__file__).parent / "config.json"
+    createIfNotExists(json_path)
+    
+    with json_path.open() as fin:
+        data = json.load(fin)
+    if not type(data) is dict:
+        exitOnError("YOU SHOULD NEVER SEE THIS: json.load() did not return dictionary.")
+    
+    for label in use_config_list:
+        if label not in data:
+            exitOnError(f"ERROR: Configuration {label} does not exist.")
+    
+    for label in use_config_list:
+        config = data[label]
+        if not type(config) is dict:
+            exitOnError(f"YOU SHOULD NEVER SEE THIS: Configuration {label} is not a dictionary.")
+        
+        for t in config:
+            if t not in ["repos", "search", "ignore"]:
+                exitOnError(f"YOU SHOULD NEVER SEE THIS: Type {t} in the config {label} is not a valid type.")
+            if len(config[t]) > 0:
+                if not type(config[t]) is list:
+                    exitOnError(f"YOU SHOULD NEVER SEE THIS: A type in the config {label} is not a list.")
+                for dir in config[t]:
+                    if not type(dir) is str:
+                        exitOnError(f"YOU SHOULD NEVER SEE THIS: A directory in the config {label} is not a string.")
+                    (dir_list if t =="repos" else (search_list if t == "search" else ignore_list)).append(dir)
+
+
+def writeJSON(
+    set_config_list : List[str],
+    dir_list        : List[str],
+    search_list     : List[str],
+    ignore_set      : Set [str]
+) -> None:
+    json_path : Path = Path(__file__).parent / "config.json"
+    createIfNotExists(json_path)
+    
+    with json_path.open() as fin:
+        data = json.load(fin)
+    if not type(data) is dict:
+        exitOnError("YOU SHOULD NEVER SEE THIS: json.load() did not return dictionary.")
+    
+    ignore_list = sorted(ignore_set)
+    for label in set_config_list:
+        if label in data:
+            inp = ""
+            while inp not in ["y", "n"]:
+                printColor(f"WARNING: Configuration {label} already exists. Overwrite? [y/n]", stdcolors["yellow"])
+                inp = input().lower()
+            if inp == "n":
+                continue
+        
+        data[label] = dict()
+        config = data[label]
+
+        if len(dir_list) > 0:
+            config["repos"] = list()
+            for dir in dir_list:
+                config["repos"].append(str(dir))
+        
+        if len(search_list) > 0:
+            config["search"] = list()
+            for dir in search_list:
+                config["search"].append(str(dir))
+
+        if len(ignore_list) > 0:
+            config["ignore"] = list()
+            for dir in ignore_list:
+                config["ignore"].append(str(dir))
+
+    with json_path.open("w") as fout:
+        json.dump(data, fout, indent=4)
+
+
+def deleteJSON(del_config_list : List[str]) -> None:
+    json_path : Path = Path(__file__).parent / "config.json"
+    createIfNotExists(json_path)
+    
+    with json_path.open() as fin:
+        data = json.load(fin)
+    if not type(data) is dict:
+        exitOnError("YOU SHOULD NEVER SEE THIS: json.load() did not return dictionary.")
+    
+    for label in del_config_list:
+        if label not in data:
+            exitOnError(f"ERROR: Configuration {label} does not exist.")
+    
+    printColor("WARNING: The following configurations will be deleted:", stdcolors["yellow"])
+    for label in del_config_list:
+        printColor(f"    {label}", stdcolors["yellow"])
+    inp = ""
+    while inp not in ["y", "n"]:
+        printColor("Continue? [y/n]", stdcolors["yellow"])
+        inp = input().lower()
+    
+    if inp == "y":
+        for label in del_config_list:
+            del data[label]
+        with json_path.open("w") as fout:
+            json.dump(data, fout, indent=4)
+
+    exit(0)
+
+
+# Used to delete any directory in the JSON that does not exist anymore #
+def purgeJSON() -> None:
+    json_path : Path = Path(__file__).parent / "config.json"
+    createIfNotExists(json_path)
+    
+    with json_path.open() as fin:
+        data = json.load(fin)
+    if not type(data) is dict:
+        exitOnError("YOU SHOULD NEVER SEE THIS: json.load() did not return dictionary.")
+    
+    print("")
+    something_done : bool = False
+    for label in data:
+        config = data[label]
+        if not type(config) is dict:
+            exitOnError(f"YOU SHOULD NEVER SEE THIS: Configuration {label} is not a dictionary.")
+        for t in config:
+            if t not in ["repos", "search", "ignore"]:
+                exitOnError(f"YOU SHOULD NEVER SEE THIS: Type {t} in the config {label} is not a valid type.")
+            if len(config[t]) > 0:
+                if not type(config[t]) is list:
+                    exitOnError(f"YOU SHOULD NEVER SEE THIS: A type in the config {label} is not a list.")
+                for dir in config[t]:
+                    if not type(dir) is str:
+                        exitOnError(f"YOU SHOULD NEVER SEE THIS: A directory in the config {label} is not a string.")
+                    if not Path(dir).is_dir():
+                        something_done = True
+                        print(f"Purging: {label} > {t} > {dir}")
+                        config[t].remove(dir)
+
+    with json_path.open("w") as fout:
+        json.dump(data, fout, indent=4)
+    
+    if not something_done:
+        print("Nothing to purge")
+    else:
+        printColor("\n-- Purge complete --", stdcolors["green"])
+    exit(0)
 
 
 def git_fetch(dir : Path) -> bool:
@@ -288,56 +532,6 @@ def git_check(
     git_check_directories(search_list, ignore_set, options, recursive, 0, recursive_max_level, checked_dirs)
 
 
-def printHelp(options: List[str], default_options: List[str]) -> None:
-        print("\nUsage:\n")
-        print("    python <git.py> <args>")
-        print("    or")
-        print("    python -m <git_module> <args>\n")
-
-        print("Usual arguments are:\n")
-        print(f"    --help, -h (Prints this)")
-        for arg in options:
-            print(f"    --{arg}, --no-{arg}")
-        print("\nDefault options are: ", end="")
-        for arg in default_options:
-            print(f"{arg} " , end="")
-
-        print("\n\nOther possible arguments are:\n")
-        print(f"    --repo/-r [default/<dir1>] [default/<dir2>] ...\n")
-        print(f"        Specifies directories containing a git repository.")
-        print(f"        If used, the argument passed to git_check_main()")
-        print(f"        are ignored unless 'default' is specified.")
-        print("")
-
-        print(f"    --search/-s [default/<dir1>] [default/<dir2>] ...\n")
-        print(f"        Specifies root directories to search for subdirectories")
-        print(f"        containing git repositories.")
-        print(f"        If used, the argument passed to git_check_main()")
-        print(f"        are ignored unless 'default' is specified.")
-        print("")
-        
-        print(f"    --ignore/-i [none/<dir1>] [none/<dir2>] ...\n")
-        print(f"        Specifies a directory to ignore. If it is part of the tree")
-        print(f"        under a directory specified with --search, all the children")
-        print(f"        will be ignored as well, unless they are also specified in")
-        print(f"        --repo or --search.")
-        print(f"        If 'none' is specified, all previous specified directories")
-        print(f"        (along with the ones passed as argument to git_check_main())")
-        print(f"        will not be ignored. Afterwards, new directories can be specified.")
-        print("")
-        
-        print(f"    --recursive [all/<n>]\n")
-        print(f"        Sets the depth level for the --search directories. Default is 0.")
-        print(f"        If 'all' is specified, the depth is infinite.")
-        print(f"        WARNING: Enabling recursivity can be dangerous.")
-        print("")
-
-
-def printHelpAndExit(options: List[str], default_options: List[str], exit_code: int = 0) -> None:
-    printHelp(options, default_options)
-    exit(exit_code)
-
-
 def git_check_main(
     dir_list    : List[Union[str,Path]] = [],
     search_list : List[Union[str,Path]] = [],
@@ -354,6 +548,9 @@ def git_check_main(
     recursive : bool = False
     real_ignore_list : List[str] = []
     real_ignore_list.extend(ignore_list)
+    use_config_list : List[str] = []
+    set_config_list : List[str] = []
+    del_config_list : List[str] = []
     while(arg_i < len(sys.argv)):
         arg : str = sys.argv[arg_i]
         if arg in default_options:
@@ -376,7 +573,7 @@ def git_check_main(
                 print_help = True
             if print_help:
                 printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
-                printHelpAndExit(options.list, default_options, 1)
+                printHelpAndExit(options.list, default_options, True, 1)
 
             arg_i += 1
             while arg_i < len(sys.argv):
@@ -399,7 +596,7 @@ def git_check_main(
                 print_help = True
             if print_help:
                 printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
-                printHelpAndExit(options.list, default_options, 1)
+                printHelpAndExit(options.list, default_options, True, 1)
             
             arg_i += 1
             while arg_i < len(sys.argv):
@@ -422,7 +619,7 @@ def git_check_main(
                 print_help = True
             if print_help:
                 printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
-                printHelpAndExit(options.list, default_options, 1)
+                printHelpAndExit(options.list, default_options, True, 1)
             
             arg_i += 1
             while arg_i < len(sys.argv):
@@ -442,7 +639,7 @@ def git_check_main(
             arg_i += 1
             if arg_i == len(sys.argv):
                 printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
-                printHelpAndExit(options.list, default_options, 1)
+                printHelpAndExit(options.list, default_options, True, 1)
             else:
                 arg = sys.argv[arg_i]
                 if arg == "all":
@@ -450,22 +647,129 @@ def git_check_main(
                 else:
                     if not arg.isdigit():
                         printColor(f"ERROR: Argument for {flag} must be an unsigned integer or 'all'", stdcolors["brightred"])
-                        printHelpAndExit(options.list, default_options, 1)
+                        printHelpAndExit(options.list, default_options, True, 1)
                     recursive_max_level = int(arg)
+
+        elif arg == "--use-config":
+            flag : str = arg
+
+            print_help : bool = False
+            if arg_i+1 == len(sys.argv):
+                print_help = True
+            elif sys.argv[arg_i+1][0] == "-":
+                print_help = True
+            if print_help:
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
+                printHelpAndExit(options.list, default_options, True, 1)
+
+            arg_i += 1
+            while arg_i < len(sys.argv):
+                arg = sys.argv[arg_i]
+                if arg[0] != "-":
+                    use_config_list.append(arg)
+                else:
+                    break
+                arg_i += 1
+            arg_i -= 1
+
+        elif arg == "--set-config":
+            flag : str = arg
+
+            print_help : bool = False
+            if arg_i+1 == len(sys.argv):
+                print_help = True
+            elif sys.argv[arg_i+1][0] == "-":
+                print_help = True
+            if print_help:
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
+                printHelpAndExit(options.list, default_options, True, 1)
+
+            arg_i += 1
+            while arg_i < len(sys.argv):
+                arg = sys.argv[arg_i]
+                if arg[0] != "-":
+                    set_config_list.append(arg)
+                else:
+                    break
+                arg_i += 1
+            arg_i -= 1
+
+        elif arg == "--del-config":
+            flag : str = arg
+
+            print_help : bool = False
+            if arg_i+1 == len(sys.argv):
+                print_help = True
+            elif sys.argv[arg_i+1][0] == "-":
+                print_help = True
+            if print_help:
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
+                printHelpAndExit(options.list, default_options, True, 1)
+
+            arg_i += 1
+            while arg_i < len(sys.argv):
+                arg = sys.argv[arg_i]
+                if arg[0] != "-":
+                    del_config_list.append(arg)
+                else:
+                    break
+                arg_i += 1
+            arg_i -= 1
+
+        elif arg == "--purge-configs":
+            purgeJSON()
+        
+        elif arg == "--list-config":
+            flag : str = arg
+            
+            print_help : bool = False
+            if arg_i+1 == len(sys.argv):
+                print_help = True
+            elif sys.argv[arg_i+1][0] == "-":
+                print_help = True
+            if print_help:
+                printColor(f"ERROR: Missing argument for {flag}", stdcolors["brightred"])
+                printHelpAndExit(options.list, default_options, True, 1)
+
+            configs_list = []
+            arg_i += 1
+            while arg_i < len(sys.argv):
+                arg = sys.argv[arg_i]
+                if arg[0] != "-":
+                    configs_list.append(arg)
+                else:
+                    break
+                arg_i += 1
+            
+            listConfigsAndExit(configs_list, verbose = False)
+
+        elif arg == "--list-configs":
+            listConfigsAndExit(verbose = False)
+        
+        elif arg == "--list-configs-verbose":
+            listConfigsAndExit(verbose=True)
+        
         elif arg in ["--help", "-h"]:
             printHelpAndExit(options.list, default_options)
-            exit()
         else:
             printColor(f"ERROR: Unknown argument: {arg}", stdcolors["brightred"])
-            printHelpAndExit(options.list, default_options, 1)
+            printHelpAndExit(options.list, default_options, True, 1)
         arg_i += 1
     del arg_i
+    
+    # Read from JSON if specified #
+    if len(use_config_list) > 0:
+        readJSON(use_config_list, real_dir_list, real_search_list, real_ignore_list)
+    
+    # Delete JSON configurations if specified #
+    if len(del_config_list) > 0:
+        deleteJSON(del_config_list)
     
     # Set directory and search lists (default if none specified) #
     if len(real_dir_list) == 0 and len(real_search_list) == 0:
         if len(dir_list) == 0 and len(search_list) == 0:
             printColor("ERROR: No directories specified", stdcolors["brightred"])
-            printHelpAndExit(options.list, default_options, 1)
+            printHelpAndExit(options.list, default_options, True, 1)
         real_dir_list = dir_list
         real_search_list = search_list
     
@@ -486,21 +790,23 @@ def git_check_main(
         rec_str : str = "ALL" if recursive_max_level is None else str(recursive_max_level)
         printColor(f"\nWARNING: Recursive search set to {rec_str}. This can be dangerous.", stdcolors["brightyellow"])
 
+    # Repositories directories #
     dir_set : Set[Path] = set()
     for dir in real_dir_list:
         path = Path(dir).absolute()
         if not path.is_dir():
             printColor(f"ERROR: {dir} is not a directory", stdcolors["brightred"])
-            printHelpAndExit(options.list, default_options, 1)
+            printHelpAndExit(options.list, default_options, True, 1)
         else:
             dir_set.add(path)
     
+    # Search directories #
     search_set : Set[Path] = set()
     for dir in real_search_list:
         path = Path(dir).absolute()
         if not path.is_dir():
             printColor(f"ERROR: {dir} is not a directory", stdcolors["brightred"])
-            printHelpAndExit(options.list, default_options, 1)
+            printHelpAndExit(options.list, default_options, True, 1)
         else:
             search_set.add(path)
 
@@ -510,10 +816,11 @@ def git_check_main(
         path = Path(dir).absolute()
         if not path.is_dir():
             printColor(f"ERROR: {dir} is not a directory", stdcolors["brightred"])
-            printHelpAndExit(options.list, default_options, 1)
+            printHelpAndExit(options.list, default_options, True, 1)
         else:
             ignore_set.add(path)
     
+    # Create sets
     real_dir_list = sorted(dir_set)
     real_search_list = sorted(search_set)
     real_ignore_list = sorted(ignore_set)
@@ -533,9 +840,12 @@ def git_check_main(
         print("\nDirectories to ignore:")
         for dir in real_ignore_list:
             print(f"    {dir}")
-    
-    git_check(real_dir_list, real_search_list, ignore_set, options, recursive, recursive_max_level)
+    del real_ignore_list
+
+    if len(set_config_list) > 0:
+        writeJSON(set_config_list, real_dir_list, real_search_list, ignore_set)
+    else:
+        git_check(real_dir_list, real_search_list, ignore_set, options, recursive, recursive_max_level)
 
 
 __all__ = ["git_check", "git_check_main"]
-
