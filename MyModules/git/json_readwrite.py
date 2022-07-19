@@ -1,7 +1,8 @@
 from typing import List, Set
 import json
-from colors import *
 from pathlib import Path
+
+from .colors import *
 
 
 def createIfNotExists(path : Path, dir_error : bool = True) -> None:
