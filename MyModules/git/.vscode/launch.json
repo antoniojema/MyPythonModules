@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["-s", "D:", "--recursive", "all"]
+            "args": ["--console"]
         }
     ]
 }
