@@ -282,7 +282,7 @@ def keyError(key: str) -> None:
         print("")
 
 
-def interpret_input(input_str: str, config: Config) -> None:
+def interpretInput(input_str: str, config: Config) -> None:
     # Get command from user, that might be a list of commands separated by ";"
     cmd_set = [i.strip() for i in input_str.split(";") if i.strip() != ""]
     for cmd in cmd_set:
@@ -293,6 +293,7 @@ def interpret_input(input_str: str, config: Config) -> None:
         for i in range(1, len(cmd_split)):
             while cmd_split[i][-1] == "\\":
                 cmd_split[i] = cmd_split[i][:-1]
+        
         current_cmd = cmd_split[0].upper()
         key_ok = False
         try:
@@ -312,7 +313,7 @@ def loop(config: Config) -> None:
         while True:
             # Get input from user
             print(">>> ", end="")
-            interpret_input(input(), config)
+            interpretInput(input(), config)
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt")
         exit(1)
