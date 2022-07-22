@@ -2,7 +2,7 @@ from typing import List, Set
 import json
 from pathlib import Path
 
-from .colors import *
+from colors import *
 
 
 def createIfNotExists(path : Path, dir_error : bool = True) -> None:

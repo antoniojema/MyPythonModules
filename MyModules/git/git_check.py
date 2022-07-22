@@ -1,11 +1,11 @@
 from tabnanny import check
-from typing import List, Set, Optional
+from typing import List, Set, Optional, Union
 from pathlib import Path
 from subprocess import Popen, PIPE
-import os
+import os, sys
 
-from .colors import *
-from .json_readwrite import *
+from colors import *
+from json_readwrite import *
 
 
 class GitOptions:
@@ -22,6 +22,52 @@ class GitOptions:
         self.push = push
         self.pull = pull
 
+def get_remote_branch_name(dir : Path) -> str:
+    output = Popen(
+        ['git', 'branch', '-vv'],
+        cwd=dir,
+        encoding='utf-8',
+        stdout=PIPE, stderr=PIPE
+    ).communicate()
+    output = output[0] + "\n" + output[1]
+
+    for line in output.split('\n'):
+        if line[0] == "*":
+            i1 = line.find('[') + 1
+            i2 = line.find(']')
+            if i1 != 0:
+                return line[i1:i2]
+            else:
+                return "-"
+
+    return "-"
+
+def get_branch_name(dir : Path) -> str:
+    output = Popen(
+        ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+        cwd=dir,
+        encoding='utf-8',
+        stdout=PIPE, stderr=PIPE
+    ).communicate()
+
+    return (output[0].strip() + output[1].strip())
+
+
+def is_git_repo(dir : Path) -> bool:
+    output : str = Popen(
+        ['git', 'branch'],
+        cwd=dir,
+        encoding='utf-8',
+        stdout=PIPE, stderr=PIPE
+    ).communicate()
+    output = output[0] + "\n" + output[1]
+
+    if ("not a git repository" in output) or \
+       ("no es un repositorio git" in output):
+        return False
+    else:
+        return True
+
 
 def git_fetch(dir : Path) -> bool:
     output : str = Popen(
@@ -30,38 +76,32 @@ def git_fetch(dir : Path) -> bool:
         encoding='utf-8',
         stdout=PIPE, stderr=PIPE
     ).communicate()
+    output = (output[0].strip() + "\n" + output[1].strip()).strip()
     
-    is_repo : bool = True
-    reached : bool = True
-    fetch_error : bool = False
-    if "fatal" in output[1]:
-        fetch_error = True
-        if "Could not read from remote repository" in output[1]:
-            printColor("    -- ERROR: Remote repository could not be reached.", stdcolors["brightred"])
-            reached = False
-        
-        elif "not a git repository" in output[1]:
-            printColor("    -- ERROR: Directory is not a git repository.", stdcolors["brightred"])
-            is_repo = False
-            reached = False
+    error : bool = False
+    if output == "":
+        printColor("    - NO REMOTE -", stdcolors["brightgreen"])
+        error = True
+    elif ("Could not read from remote repository" in output) or \
+         ("TODO: ESPANOL" in output):
+        printColor("    -- ERROR: Remote repository could not be reached.", stdcolors["brightred"])
+        error = True
+    elif "fatal" in output:
+        printColor("    -- ERROR: Unknown error in fetch:", stdcolors["brightred"])
+        printColor(output, stdcolors["brightred"])
+        error = True
 
-        else:
-            printColor("    -- ERROR: Unknown error in fetch:", stdcolors["brightred"])
-            printColor(output[1], stdcolors["brightred"])
-            is_repo = False
-            reached = False
-
-    if reached:
+    if not error:
         all_up_to_date : bool = True
         for out in output:
             for line in out.split("\n")[2:-1]:
-                if not "[up to date]" in line:
+                if not ("[up to date]" in line or "[actualizado]" in line):
                     all_up_to_date = False
                     printColor(f"    {line}", stdcolors["brightred"])
         if (all_up_to_date):
             printColor("    - REMOTE UP TO DATE -", stdcolors["brightgreen"])
     
-    return is_repo, fetch_error
+    return error
 
 
 def git_check_repo(dir : Path, options : GitOptions) -> bool:
@@ -70,12 +110,26 @@ def git_check_repo(dir : Path, options : GitOptions) -> bool:
     print("\n" + "-" * len(msg))
     print(msg)
     print("-" * len(msg), flush=True)
+
+    # Check if it is a repository #
+    if not is_git_repo(dir):
+        printColor("    -- ERROR: Directory is not a git repository.", stdcolors["brightred"])
+        return False
+
+    # Branch names #
+    local_branch : str = get_branch_name(dir)
+    remote_branch : str = get_remote_branch_name(dir)
+    has_upstream : bool
+    print(f"    Local branch:  {local_branch}")
+    if remote_branch == "-":
+        print("    No remote branch")
+        has_upstream = False
+    else:
+        print(f"    Remote branch: {remote_branch}")
+        has_upstream = True
     
     # Fetch #
-    is_repo, fetch_error = git_fetch(dir)
-
-    if not is_repo:
-        return False
+    fetch_error = git_fetch(dir)
     
     # Status #
     if options.status or options.commit or options.push or options.pull:
@@ -91,9 +145,10 @@ def git_check_repo(dir : Path, options : GitOptions) -> bool:
         branch_ahead : bool = False
         branch_behind : bool = False
         branch_diverged : bool = False
-        if "nothing to commit" in total_output:
+        if ("nothing to commit" in total_output) or \
+           ("nada para hacer commit" in total_output):
             branch_clean = True
-        if "Your branch is behind" in total_output:
+        if ("Your branch is behind" in total_output):
             branch_behind = True
         elif "Your branch is ahead" in total_output:
             branch_ahead = True
@@ -158,7 +213,7 @@ def git_check_repo(dir : Path, options : GitOptions) -> bool:
                 printColor("    -- WARNING: COMMIT MADE BRANCHE DIVERGE FROM REMOTE", stdcolors["brightyellow"])
         
         # Pull & push #
-        if not (branch_diverged or fetch_error):
+        if not (branch_diverged or fetch_error or not has_upstream):
             # Push #
             if options.push and branch_clean and branch_ahead:
                 proc : Popen = Popen(

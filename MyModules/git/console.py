@@ -2,10 +2,10 @@ import shlex
 from pathlib import Path
 from Levenshtein import distance as levenshtein_distance
 
-from .git_check import git_check, GitOptions
-from .json_readwrite import readJSON, writeJSON, getConfigList, listAllConfigs, purgeJSON_Console
-from .colors import *
-from .config import Config
+from git_check import git_check, GitOptions
+from json_readwrite import readJSON, writeJSON, getConfigList, listAllConfigs, purgeJSON_Console
+from colors import *
+from config import Config
 
 
 def help(cmds, config) -> None:
