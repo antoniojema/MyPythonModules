@@ -2,10 +2,10 @@ from pathlib import Path
 from typing import List, Union
 import sys
 
-from git_check import git_check, GitOptions
-from colors import printColor, stdcolors
-from console import main as console_main
-from json_readwrite import readJSON
+from .git_check import git_check, GitOptions
+from .colors import printColor, stdcolors
+from .console import main as console_main
+from .json_readwrite import readJSON
 
 
 def printBasicHelp(options: List[str], default_options: List[str]) -> None:

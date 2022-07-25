@@ -4,8 +4,8 @@ from pathlib import Path
 from subprocess import Popen, PIPE
 import os, sys
 
-from colors import *
-from json_readwrite import *
+from .colors import *
+from .json_readwrite import *
 
 
 class GitOptions:
@@ -32,7 +32,8 @@ def get_remote_branch_name(dir : Path) -> str:
     output = output[0] + "\n" + output[1]
 
     for line in output.split('\n'):
-        if line[0] == "*":
+        if len(line) > 0:
+         if line[0] == "*":
             i1 = line.find('[') + 1
             i2 = line.find(']')
             if i1 != 0:
