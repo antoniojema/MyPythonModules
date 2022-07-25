@@ -5,7 +5,7 @@ import sys
 from .git_check import git_check, GitOptions
 from .colors import printColor, stdcolors
 from .console import main as console_main
-from .json_readwrite import readJSON
+from .json_readwrite import *
 
 
 def printBasicHelp(options: List[str], default_options: List[str]) -> None:

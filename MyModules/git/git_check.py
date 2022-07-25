@@ -8,6 +8,16 @@ from .colors import *
 from .json_readwrite import *
 
 
+def minPositive(arg1, *args) -> Union[int,float]:
+    min_val = arg1
+    for arg in args:
+        if arg >= 0:
+         if arg < min_val:
+            min_val = arg
+    
+    return min_val
+
+
 class GitOptions:
     list = ["status", "commit", "push", "pull"]
     
@@ -35,7 +45,7 @@ def get_remote_branch_name(dir : Path) -> str:
         if len(line) > 0:
          if line[0] == "*":
             i1 = line.find('[') + 1
-            i2 = line.find(']')
+            i2 = minPositive(line.find(']'), line.find(':'))
             if i1 != 0:
                 return line[i1:i2]
             else:
